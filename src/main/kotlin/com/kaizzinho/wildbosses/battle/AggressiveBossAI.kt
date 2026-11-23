@@ -345,12 +345,7 @@ class AggressiveBossAI(
         return battle.turn - lastUseTurn < 3
     }
 
-    private fun expectedHits(move: MoveTemplate): Double {
-        if (move.name == "triplekick" || move.name == "tripleaxel") return 2.4
-        if (move.name == "populationbomb") return 7.0
-        val range = AIUtility.multiHitMoves[move.name] ?: return 1.0
-        return if (range.first == range.second) range.first.toDouble() else 3.0
-    }
+    private fun expectedHits(move: MoveTemplate): Double = BossMovesetBuilder.expectedHits(move)
 
     private fun chooseMove(
         move: InBattleMove,

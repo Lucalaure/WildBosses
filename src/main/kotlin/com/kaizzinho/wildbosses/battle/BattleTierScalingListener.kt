@@ -116,7 +116,7 @@ object BattleTierScalingListener {
             BossStatDiagnostics.log(bossPokemon, tier)
 
             StrayLootWatcher.startWatching(bossEntity.uuid, bossInstance.lastKnownLevel!!)
-            BossMovesetBuilder.apply(bossPokemon, tier)
+            BossMovesetBuilder.apply(bossPokemon, tier, bossEntity.uuid)
             applyMegaEvolutionIfEligible(bossEntity, bossInstance)
 
             BossHealthBarManager.start(bossEntity, player, tier, scaledLevel)
