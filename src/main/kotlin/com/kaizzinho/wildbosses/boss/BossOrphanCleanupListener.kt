@@ -56,7 +56,7 @@ object BossOrphanCleanupListener {
                 BossRegistry.get(entity.uuid)!!
             }
 
-            if (!instance.defeated && world.gameTime - instance.spawnedAtTick >= WildBossesConfig.data.bossLifetimeTicks) {
+            if (!instance.defeated && !entity.isBattling && world.gameTime - instance.spawnedAtTick >= WildBossesConfig.data.bossLifetimeTicks) {
                 BossDepartureMessages.announceLifetimeExpired(
                     world.server,
                     instance,

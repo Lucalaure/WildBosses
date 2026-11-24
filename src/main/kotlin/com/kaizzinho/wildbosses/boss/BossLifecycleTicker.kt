@@ -38,6 +38,11 @@ object BossLifecycleTicker {
                     continue
                 }
 
+                // never pull a boss out of an ongoing fight; it departs once the battle ends
+                if (found.isBattling) {
+                    continue
+                }
+
                 BossDepartureMessages.announceLifetimeExpired(
                     server,
                     instance,
