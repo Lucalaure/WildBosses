@@ -1,6 +1,7 @@
 package com.kaizzinho.wildbosses.boss
 
 import net.minecraft.ChatFormatting
+import net.minecraft.core.BlockPos
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.MutableComponent
 import net.minecraft.world.item.ItemStack
@@ -23,6 +24,9 @@ object BossMessageFormat {
 
     fun levelValue(tier: BossTier, level: Int): Component =
         Component.literal("$level").withStyle(tier.color, ChatFormatting.BOLD)
+
+    fun coordinates(tier: BossTier, pos: BlockPos): Component =
+        Component.literal("${pos.x}, ${pos.y}, ${pos.z}").withStyle(tier.color, ChatFormatting.BOLD)
 
     fun lootItem(stack: ItemStack): Component =
         Component.translatable("wildbosses.message.loot_item", stack.count)

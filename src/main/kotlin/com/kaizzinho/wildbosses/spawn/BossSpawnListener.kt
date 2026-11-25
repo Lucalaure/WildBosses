@@ -178,7 +178,13 @@ object BossSpawnListener {
         val server = entity.server ?: return
         val message = BossMessageFormat.build(
             BossMessageFormat.bossName(tier, entity.pokemon.species.name)
-                .append(BossMessageFormat.plainKey("wildbosses.message.spawned_near", targetPlayer.name.string))
+                .append(
+                    BossMessageFormat.plainKey(
+                        "wildbosses.message.spawned_near",
+                        targetPlayer.name.string,
+                        BossMessageFormat.coordinates(tier, entity.blockPosition())
+                    )
+                )
         )
         server.playerList.broadcastSystemMessage(message, false)
     }

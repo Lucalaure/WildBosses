@@ -36,7 +36,7 @@
   "wildbosses.tier.mythic": "Mítico",
   "wildbosses.prefix": "[WildBosses] ",
   "wildbosses.message.boss_name": "Chefe %s %s",
-  "wildbosses.message.spawned_near": " apareceu perto de %s!",
+  "wildbosses.message.spawned_near": " apareceu perto de %s em %s!",
   "wildbosses.message.defeated_by": " foi derrotado por %s!",
   "wildbosses.message.lifetime_expired": " desapareceu após permanecer por tempo demais!",
   "wildbosses.message.scaled_to_level": " escalado para o nível ",
