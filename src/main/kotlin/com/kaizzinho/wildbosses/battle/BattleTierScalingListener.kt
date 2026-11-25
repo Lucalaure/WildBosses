@@ -10,6 +10,7 @@ import com.cobblemon.mod.common.battles.actor.PokemonBattleActor
 import com.cobblemon.mod.common.battles.ai.StrongBattleAI
 import com.cobblemon.mod.common.entity.pokemon.PokemonEntity
 import com.kaizzinho.wildbosses.WildBosses
+import com.kaizzinho.wildbosses.boss.BossEvolutionResolver
 import com.kaizzinho.wildbosses.boss.BossInstance
 import com.kaizzinho.wildbosses.boss.BossMessageFormat
 import com.kaizzinho.wildbosses.boss.BossPersistence
@@ -99,8 +100,7 @@ object BattleTierScalingListener {
                 ?: return@subscribe
             val player = playerActor.entity ?: return@subscribe
 
-            val party = Cobblemon.storage.getParty(player)
-            val highestPlayerLevel = party.mapNotNull { it.level }.maxOrNull()
+            val highestPlayerLevel = highestPartyLevel(player)
 
             if (highestPlayerLevel == null) {
                 WildBosses.logger.warn("[WildBosses] Player ${player.name.string} has an empty party during boss battle - skipping scaling")
@@ -108,11 +108,14 @@ object BattleTierScalingListener {
             }
 
             val tier = bossInstance.tier
-            val scaledLevel = (highestPlayerLevel + tier.levelBonus).coerceAtMost(WildBossesConfig.data.maxScaledLevel)
+            val scaledLevel = scaledLevel(highestPlayerLevel, tier)
 
             val bossPokemon = bossEntity.pokemon
             bossPokemon.level = scaledLevel
             bossInstance.currentLevelOverride = scaledLevel
+            if (BossEvolutionResolver.evolveForLevel(bossPokemon, scaledLevel)) {
+                bossInstance.speciesName = bossPokemon.species.name
+            }
             BossStatDiagnostics.log(bossPokemon, tier)
 
             StrayLootWatcher.startWatching(bossEntity.uuid, bossInstance.lastKnownLevel!!)
@@ -142,6 +145,12 @@ object BattleTierScalingListener {
             }
         }
     }
+
+    fun highestPartyLevel(player: ServerPlayer): Int? =
+        Cobblemon.storage.getParty(player).mapNotNull { it.level }.maxOrNull()
+
+    fun scaledLevel(highestPlayerLevel: Int, tier: BossTier): Int =
+        (highestPlayerLevel + tier.levelBonus).coerceAtMost(WildBossesConfig.data.maxScaledLevel)
 
     private fun flushPendingBattleMessage(battleId: UUID) {
         val battle = BattleRegistry.getBattle(battleId) ?: return

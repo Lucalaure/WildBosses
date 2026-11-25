@@ -169,6 +169,20 @@ class WildBossesConfigScreen private constructor(
                 working.excludedSpeciesLabels = parsed.toMutableList()
             }
         }
+
+        addBooleanOption(
+            1,
+            "wildbosses.config.option.force_evolve_bosses",
+            working.forceEvolveBosses
+        ) { working.forceEvolveBosses = it }
+
+        addIntField(
+            2,
+            "wildbosses.config.option.forced_evolution_fallback_level",
+            working.forcedEvolutionFallbackLevel,
+            1,
+            1000
+        ) { working.forcedEvolutionFallbackLevel = it }
     }
 
     private fun addTiersPage() {
@@ -456,7 +470,9 @@ class WildBossesConfigScreen private constructor(
                 "wildbosses.config.option.blocked_boss_moves"
             )
             Page.SPECIES -> listOf(
-                "wildbosses.config.option.excluded_labels"
+                "wildbosses.config.option.excluded_labels",
+                null,
+                "wildbosses.config.option.forced_evolution_fallback_level"
             )
             Page.TIERS -> listOf(
                 "wildbosses.config.option.tier_weight",

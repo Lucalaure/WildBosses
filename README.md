@@ -67,6 +67,7 @@ The Boss is not permanently tied to the player who caused it to appear. Another 
 - [x] Optional Mega Evolution support for eligible high-tier Bosses.
 - [x] One-time Mega Stone progression rewards per species and player.
 - [x] Epic+ final-evolution enforcement and perfect IVs by default.
+- [x] Level-based forced evolution: Bosses of every tier evolve into each stage their battle level reaches (configurable).
 - [x] Increased shiny odds for Legendary and Mythic Bosses.
 - [x] Persistent per-player spawn cooldowns.
 - [x] Boss-state recovery across chunk and world reloads.
@@ -637,6 +638,7 @@ O Boss não fica preso ao jogador que causou seu spawn. Outro jogador pode encon
 - [x] Suporte opcional a Mega Evolução para Bosses elegíveis de tier alto.
 - [x] Mega Stones únicas por espécie e por jogador como progressão.
 - [x] Bosses Epic+ forçados para a evolução final e IVs perfeitos por padrão.
+- [x] Evolução forçada por nível: Bosses de todos os tiers evoluem para cada estágio que o nível de batalha alcança (configurável).
 - [x] Chance maior de shiny em Legendary e Mythic.
 - [x] Cooldown de spawn persistente por jogador.
 - [x] Recuperação do estado do Boss após unload de chunk e reload do mundo.

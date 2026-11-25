@@ -22,6 +22,8 @@ data class WildBossesConfigData(
     var excludedSpeciesLabels: MutableList<String> = mutableListOf("legendary", "mythical", "ultra_beast"),
     var blockedBossMoves: MutableList<String> = defaultBlockedBossMoves(),
     var maxScaledLevel: Int = 200,
+    var forceEvolveBosses: Boolean = true,
+    var forcedEvolutionFallbackLevel: Int = 36,
     var enrageIntervalTurns: Int = 8,
     var enrageStatStages: Int = 1,
     var bossAiDebugLogging: Boolean = false,
@@ -176,6 +178,7 @@ object WildBossesConfig {
         raw.bossSpawnChance = raw.bossSpawnChance.coerceIn(0.0, 1.0)
         raw.spawnCooldownTicks = raw.spawnCooldownTicks.coerceAtLeast(0L)
         raw.maxScaledLevel = raw.maxScaledLevel.coerceIn(1, 1000)
+        raw.forcedEvolutionFallbackLevel = raw.forcedEvolutionFallbackLevel.coerceIn(1, 1000)
         raw.enrageIntervalTurns = raw.enrageIntervalTurns.coerceAtLeast(1)
         raw.enrageStatStages = raw.enrageStatStages.coerceIn(0, 6)
         raw.bossLifetimeTicks = raw.bossLifetimeTicks.coerceAtLeast(20L)

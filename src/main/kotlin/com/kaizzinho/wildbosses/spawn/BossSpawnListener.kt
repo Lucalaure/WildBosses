@@ -8,6 +8,7 @@ import com.cobblemon.mod.common.api.spawning.spawner.PlayerSpawner
 import com.cobblemon.mod.common.pokemon.Pokemon
 import com.cobblemon.mod.common.pokemon.properties.UncatchableProperty
 import com.kaizzinho.wildbosses.WildBosses
+import com.kaizzinho.wildbosses.battle.BattleTierScalingListener
 import com.kaizzinho.wildbosses.boss.BossEvolutionResolver
 import com.kaizzinho.wildbosses.boss.BossMessageFormat
 import com.kaizzinho.wildbosses.boss.BossPersistence
@@ -240,6 +241,14 @@ object BossSpawnListener {
             entity.pokemon.form = resolved.form
             entity.pokemon.updateAspects()
         }
+
+        // evolve to match the level this boss will fight at against its target player
+        val expectedLevel = BattleTierScalingListener.highestPartyLevel(targetPlayer)
+            ?.let { BattleTierScalingListener.scaledLevel(it, tier) }
+        BossEvolutionResolver.evolveForLevel(
+            entity.pokemon,
+            maxOf(entity.pokemon.level, expectedLevel ?: 0)
+        )
 
         applyBossStats(entity, tier)
 
