@@ -121,7 +121,7 @@ object BattleTierScalingListener {
 
             BossHealthBarManager.start(bossEntity, player, tier, scaledLevel)
             BossEnrageManager.startTracking(bossEntity.uuid, battle, wildActor, tier)
-            BossPersistence.requestCheckpoint(bossEntity)
+            BossPersistence.ensurePersistent(bossEntity)
             announceBattleEngage(bossEntity, player, tier)
 
             val battleMessage = BossMessageFormat.build(

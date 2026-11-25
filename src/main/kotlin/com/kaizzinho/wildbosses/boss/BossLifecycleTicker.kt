@@ -3,7 +3,6 @@ package com.kaizzinho.wildbosses.boss
 import com.cobblemon.mod.common.entity.pokemon.PokemonEntity
 import com.kaizzinho.wildbosses.config.WildBossesConfig
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
-import net.minecraft.server.level.ServerLevel
 
 object BossLifecycleTicker {
 
@@ -24,12 +23,10 @@ object BossLifecycleTicker {
 
             for (instance in expired) {
                 var found: PokemonEntity? = null
-                var foundLevel: ServerLevel? = null
                 for (level in server.allLevels) {
                     val entity = level.getEntity(instance.entityUuid)
                     if (entity is PokemonEntity) {
                         found = entity
-                        foundLevel = level
                         break
                     }
                 }
@@ -52,7 +49,6 @@ object BossLifecycleTicker {
 
                 server.scoreboard.removePlayerFromTeam(instance.entityUuid.toString())
                 BossRegistry.unregister(instance.entityUuid)
-                foundLevel?.let { BossPersistence.requestLevelCheckpoint(it) }
             }
         }
     }

@@ -18,7 +18,7 @@ object BossOrphanCleanupListener {
             val hasBossTeam = teamTier != null
 
             if (existing != null || hasBossTag || hasBossTeam || entity.isPersistenceRequired()) {
-                BossPersistence.probeState(
+                BossPersistence.logState(
                     "ENTITY_LOAD_SEEN",
                     entity,
                     "existingRegistry=${existing != null} hasBossTag=$hasBossTag hasBossTeam=$hasBossTeam"
@@ -43,7 +43,6 @@ object BossOrphanCleanupListener {
                 world.scoreboard.removePlayerFromTeam(entity.uuid.toString())
                 entity.tags.remove("wildbosses:is_boss")
                 entity.discard()
-                BossPersistence.requestLevelCheckpoint(world)
                 return@register
             }
 
@@ -65,13 +64,12 @@ object BossOrphanCleanupListener {
                 world.scoreboard.removePlayerFromTeam(entity.uuid.toString())
                 BossRegistry.unregister(entity.uuid)
                 entity.discard()
-                BossPersistence.requestLevelCheckpoint(world)
                 return@register
             }
 
             BossPersistence.restoreRuntimeState(entity, tier, spawnedAtTick)
             BossPersistence.logState("ENTITY_LOAD_POST", entity, "tier=${tier.name}")
-            BossPersistence.requestCheckpoint(entity)
+            BossPersistence.ensurePersistent(entity)
         }
 
         ServerEntityEvents.ENTITY_UNLOAD.register { entity, world ->
@@ -83,7 +81,6 @@ object BossOrphanCleanupListener {
                 instance.lastKnownLevel = world
             }
             BossPersistence.logState("ENTITY_UNLOAD", entity)
-            BossPersistence.requestLevelCheckpoint(world)
         }
 
         EntityTrackingEvents.START_TRACKING.register { trackedEntity, player ->
@@ -95,7 +92,7 @@ object BossOrphanCleanupListener {
             val tier = existing?.tier ?: recoverTier(entity) ?: teamTier
             if (tier == null) {
                 WildBosses.logger.warn(
-                    "[BossPersistence-DEBUG] START_TRACKING could not recover tier for " +
+                    "[BossPersistence] START_TRACKING could not recover tier for " +
                         "species=${entity.pokemon.species.name} uuid=${entity.uuid} player=${player.name.string}"
                 )
                 return@register
@@ -122,7 +119,7 @@ object BossOrphanCleanupListener {
             val entity = trackedEntity as? PokemonEntity ?: return@register
             val teamTier = recoverTierFromTeam(entity)
             if (!BossRegistry.isBoss(entity.uuid) && !entity.tags.contains("wildbosses:is_boss") && teamTier == null) return@register
-            BossPersistence.probeState(
+            BossPersistence.logState(
                 "STOP_TRACKING",
                 entity,
                 "player=${player.name.string} teamTier=${teamTier?.name ?: "<none>"}"

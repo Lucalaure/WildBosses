@@ -7,20 +7,17 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
 import net.minecraft.server.level.ServerLevel
 import java.util.UUID
 
+/**
+ * Boss state survives restarts through the entity's own NBT (see PokemonEntityMixin) plus
+ * setPersistenceRequired(), so vanilla autosave and chunk unloading write it like any other entity.
+ * This class never forces a level save: doing so from a tick event re-ran the full world save
+ * (including the overworld's SavedData files) outside of vanilla's save schedule and could collide
+ * with a save already in progress.
+ */
 object BossPersistence {
 
     private const val SPAWN_TICK_TAG_PREFIX = "wildbosses:spawned_at_"
-    private const val CHECKPOINT_RETRY_LIMIT = 40
-    private val pendingCheckpoints = linkedMapOf<UUID, PendingCheckpoint>()
-    private val pendingLevelCheckpoints = linkedSetOf<ServerLevel>()
     private val pendingClientResyncs = linkedMapOf<UUID, PendingClientResync>()
-
-    private data class PendingCheckpoint(
-        val entityUuid: UUID,
-        val level: ServerLevel,
-        val entityRef: PokemonEntity,
-        var attempts: Int = 0
-    )
 
     private data class PendingClientResync(
         val entityUuid: UUID,
@@ -30,21 +27,13 @@ object BossPersistence {
     )
 
     fun register() {
-        WildBosses.logger.warn("[WildBosses-PERSISTENCE-PROBE] BossPersistence.register build=${WildBosses.PERSISTENCE_PROBE_BUILD}")
-
         ServerLifecycleEvents.SERVER_STOPPED.register {
-            pendingCheckpoints.clear()
-            pendingLevelCheckpoints.clear()
             pendingClientResyncs.clear()
             BossRegistry.clear()
         }
 
-        ServerTickEvents.END_SERVER_TICK.register checkpointTick@{ _ ->
-            if (
-                pendingCheckpoints.isEmpty() &&
-                pendingLevelCheckpoints.isEmpty() &&
-                pendingClientResyncs.isEmpty()
-            ) return@checkpointTick
+        ServerTickEvents.END_SERVER_TICK.register resyncTick@{ _ ->
+            if (pendingClientResyncs.isEmpty()) return@resyncTick
 
             val resyncs = pendingClientResyncs.values.toList()
             pendingClientResyncs.clear()
@@ -58,63 +47,6 @@ object BossPersistence {
                 entity.setGlowingTag(true)
 
                 logState("POST_TRACKING_RESYNC", entity, "tier=${resync.tier.name}")
-            }
-
-            val pending = pendingCheckpoints.values.toList()
-
-            val levelsToSave = linkedSetOf<ServerLevel>()
-            levelsToSave += pendingLevelCheckpoints
-            pendingLevelCheckpoints.clear()
-            for (checkpoint in pending) {
-                val entity = checkpoint.level.getEntity(checkpoint.entityUuid) as? PokemonEntity
-
-                if (entity == null) {
-                    if (!checkpoint.entityRef.isRemoved && checkpoint.attempts < CHECKPOINT_RETRY_LIMIT) {
-                        checkpoint.attempts++
-                        if (checkpoint.attempts == 1 || checkpoint.attempts % 10 == 0) {
-                            WildBosses.logger.info(
-                                "[BossPersistence-DEBUG] CHECKPOINT_RETRY uuid=${checkpoint.entityUuid} " +
-                                    "attempt=${checkpoint.attempts} registry=${BossRegistry.isBoss(checkpoint.entityUuid)}"
-                            )
-                        }
-                        continue
-                    }
-
-                    pendingCheckpoints.remove(checkpoint.entityUuid)
-                    WildBosses.logger.warn(
-                        "[BossPersistence-DEBUG] CHECKPOINT_GAVE_UP uuid=${checkpoint.entityUuid} " +
-                            "attempts=${checkpoint.attempts} removed=${checkpoint.entityRef.isRemoved} " +
-                            "registry=${BossRegistry.isBoss(checkpoint.entityUuid)}"
-                    )
-                    continue
-                }
-
-                if (entity.isRemoved || !isBossState(entity)) {
-                    pendingCheckpoints.remove(checkpoint.entityUuid)
-                    WildBosses.logger.info(
-                        "[BossPersistence-DEBUG] CHECKPOINT_SKIP uuid=${checkpoint.entityUuid} " +
-                            "entityPresent=true removed=${entity.isRemoved} " +
-                            "bossTag=${entity.tags.contains("wildbosses:is_boss")} registry=${BossRegistry.isBoss(checkpoint.entityUuid)}"
-                    )
-                    continue
-                }
-
-                pendingCheckpoints.remove(checkpoint.entityUuid)
-                entity.setPersistenceRequired()
-                checkpoint.level.getChunkAt(entity.blockPosition()).setUnsaved(true)
-                levelsToSave += checkpoint.level
-                logState("CHECKPOINT_READY", entity, "attempts=${checkpoint.attempts}")
-            }
-
-            for (level in levelsToSave) {
-                try {
-                    level.save(null, true, false)
-                    WildBosses.logger.info(
-                        "[BossPersistence-DEBUG] LEVEL_CHECKPOINT_SAVED dimension=${level.dimension().location()}"
-                    )
-                } catch (e: Exception) {
-                    WildBosses.logger.error("[WildBosses] Failed to checkpoint active Bosses", e)
-                }
             }
         }
     }
@@ -146,23 +78,10 @@ object BossPersistence {
         entity.setGlowingTag(true)
     }
 
-    fun requestCheckpoint(entity: PokemonEntity) {
-        val level = entity.level() as? ServerLevel ?: return
+    /** Makes sure the boss is never despawned; vanilla saves it on the next autosave or chunk unload. */
+    fun ensurePersistent(entity: PokemonEntity) {
         entity.setPersistenceRequired()
-        level.getChunkAt(entity.blockPosition()).setUnsaved(true)
-        pendingCheckpoints[entity.uuid] = PendingCheckpoint(entity.uuid, level, entity)
-        WildBosses.logger.warn(
-            "[WildBosses-PERSISTENCE-PROBE] CHECKPOINT_REQUESTED build=${WildBosses.PERSISTENCE_PROBE_BUILD} " +
-                "species=${entity.pokemon.species.name} uuid=${entity.uuid}"
-        )
-        logState("CHECKPOINT_REQUESTED", entity)
-    }
-
-    fun requestLevelCheckpoint(level: ServerLevel) {
-        pendingLevelCheckpoints += level
-        WildBosses.logger.info(
-            "[BossPersistence-DEBUG] LEVEL_CHECKPOINT_REQUESTED dimension=${level.dimension().location()}"
-        )
+        logState("ENSURE_PERSISTENT", entity)
     }
 
     fun requestClientResync(entity: PokemonEntity, tier: BossTier, spawnedAtTick: Long) {
@@ -176,30 +95,17 @@ object BossPersistence {
             ?.removePrefix(SPAWN_TICK_TAG_PREFIX)
             ?.toLongOrNull()
 
-    fun probeState(phase: String, entity: PokemonEntity, extra: String = "") {
-        val labelLevel = runCatching { entity.entityData.get(PokemonEntity.LABEL_LEVEL) }.getOrNull()
-        val tierTag = entity.tags.firstOrNull { it.startsWith("wildbosses:tier_") }
-        val teamName = entity.team?.name ?: "<none>"
-        val suffix = if (extra.isBlank()) "" else " $extra"
-        WildBosses.logger.warn(
-            "[WildBosses-PERSISTENCE-PROBE] $phase build=${WildBosses.PERSISTENCE_PROBE_BUILD} " +
-                "species=${entity.pokemon.species.name} entityUuid=${entity.uuid} pokemonUuid=${entity.pokemon.uuid} " +
-                "registry=${BossRegistry.isBoss(entity.uuid)} bossTag=${entity.tags.contains("wildbosses:is_boss")} " +
-                "tierTag=$tierTag pokemonLevel=${entity.pokemon.level} labelLevel=$labelLevel team=$teamName " +
-                "glowing=${entity.isCurrentlyGlowing()} persistenceRequired=${entity.isPersistenceRequired()} " +
-                "removed=${entity.isRemoved}$suffix"
-        )
-    }
-
     fun logState(phase: String, entity: PokemonEntity, extra: String = "") {
+        if (!WildBosses.logger.isDebugEnabled) return
+
         val labelLevel = runCatching { entity.entityData.get(PokemonEntity.LABEL_LEVEL) }.getOrNull()
         val tierTag = entity.tags.firstOrNull { it.startsWith("wildbosses:tier_") }
         val spawnTag = entity.tags.firstOrNull { it.startsWith(SPAWN_TICK_TAG_PREFIX) }
         val teamName = entity.team?.name ?: "<none>"
         val suffix = if (extra.isBlank()) "" else " $extra"
 
-        WildBosses.logger.info(
-            "[BossPersistence-DEBUG] $phase species=${entity.pokemon.species.name} " +
+        WildBosses.logger.debug(
+            "[BossPersistence] $phase species=${entity.pokemon.species.name} " +
                 "entityUuid=${entity.uuid} pokemonUuid=${entity.pokemon.uuid} " +
                 "registry=${BossRegistry.isBoss(entity.uuid)} bossTag=${entity.tags.contains("wildbosses:is_boss")} " +
                 "tierTag=$tierTag spawnTag=$spawnTag team=$teamName pokemonLevel=${entity.pokemon.level} " +
@@ -208,10 +114,4 @@ object BossPersistence {
                 "dimension=${(entity.level() as? ServerLevel)?.dimension()?.location()} pos=${entity.blockPosition()}$suffix"
         )
     }
-
-    private fun isBossState(entity: PokemonEntity): Boolean =
-        entity.tags.contains("wildbosses:is_boss") ||
-            BossRegistry.isBoss(entity.uuid) ||
-            entity.team?.name?.startsWith("wildbosses_") == true
-
 }

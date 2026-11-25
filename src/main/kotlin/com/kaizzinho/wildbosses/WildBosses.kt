@@ -1,6 +1,7 @@
 package com.kaizzinho.wildbosses
 
 import net.fabricmc.api.ModInitializer
+import net.fabricmc.loader.api.FabricLoader
 import org.slf4j.LoggerFactory
 import com.kaizzinho.wildbosses.event.ModEvents
 import com.cobblemon.mod.common.Cobblemon
@@ -12,12 +13,15 @@ import com.kaizzinho.wildbosses.config.WildBossesConfig
 
 object WildBosses : ModInitializer {
 	const val MOD_ID = "wildbosses"
-	const val PERSISTENCE_PROBE_BUILD = "20261006-cobblemon-1.8-no-custom-synched-data"
 	val logger = LoggerFactory.getLogger(MOD_ID)!!
+	val version: String by lazy {
+		FabricLoader.getInstance().getModContainer(MOD_ID)
+			.map { it.metadata.version.friendlyString }
+			.orElse("unknown")
+	}
 
 	override fun onInitialize() {
-		logger.info("[WildBosses] Initializing Boss System...")
-		logger.warn("[WildBosses-PERSISTENCE-PROBE] build=$PERSISTENCE_PROBE_BUILD loaded")
+		logger.info("[WildBosses] Initializing Boss System v$version...")
 
 		WildBossesConfig.data
 		WildBossCriteria.register()

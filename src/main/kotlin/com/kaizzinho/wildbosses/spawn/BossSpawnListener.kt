@@ -72,8 +72,8 @@ object BossSpawnListener {
             val cooldownData = BossSpawnCooldownData.get(overworld)
             if (cooldownData.isOnCooldown(targetPlayer.uuid, currentTick)) return@entityLoad
 
-            WildBosses.logger.info(
-                "[BossPersistence-DEBUG] NATURAL_PROMOTION_FINALIZED species=${entity.pokemon.species.name} " +
+            WildBosses.logger.debug(
+                "[BossPersistence] NATURAL_PROMOTION_FINALIZED species=${entity.pokemon.species.name} " +
                     "uuid=${entity.uuid} tier=${pending.tier.name} source=${pending.spawnSource}"
             )
 
@@ -98,8 +98,8 @@ object BossSpawnListener {
             for (pending in stale) {
                 pendingPromotions.remove(pending.entityUuid)
                 reservedPlayers.remove(pending.targetPlayerUuid)
-                WildBosses.logger.info(
-                    "[BossPersistence-DEBUG] NATURAL_PROMOTION_EXPIRED uuid=${pending.entityUuid} " +
+                WildBosses.logger.debug(
+                    "[BossPersistence] NATURAL_PROMOTION_EXPIRED uuid=${pending.entityUuid} " +
                         "tier=${pending.tier.name}"
                 )
             }
@@ -138,8 +138,8 @@ object BossSpawnListener {
         )
         reservedPlayers += nearestPlayer.uuid
 
-        WildBosses.logger.info(
-            "[BossPersistence-DEBUG] NATURAL_PROMOTION_QUEUED species=${entity.pokemon.species.name} " +
+        WildBosses.logger.debug(
+            "[BossPersistence] NATURAL_PROMOTION_QUEUED species=${entity.pokemon.species.name} " +
                 "uuid=${entity.uuid} tier=${tier.name} player=${nearestPlayer.name.string} source=${describeSpawner(spawner)}"
         )
     }
@@ -246,7 +246,7 @@ object BossSpawnListener {
         UncatchableProperty.uncatchable().apply(entity.pokemon)
         BossPersistence.restoreRuntimeState(entity, tier, currentTick)
         BossRegistry.register(entity, tier, currentTick)
-        BossPersistence.requestCheckpoint(entity)
+        BossPersistence.ensurePersistent(entity)
         announceSpawn(entity, tier, targetPlayer)
 
         cooldownData.startCooldown(targetPlayer.uuid, currentTick, WildBossesConfig.data.spawnCooldownTicks)

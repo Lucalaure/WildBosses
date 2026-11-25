@@ -14,7 +14,6 @@ import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback
 import net.minecraft.commands.CommandSourceStack
-import net.minecraft.server.level.ServerLevel
 import net.minecraft.commands.Commands
 import net.minecraft.commands.arguments.EntityArgument
 import net.minecraft.core.registries.Registries
@@ -342,7 +341,6 @@ object WildBossCommands {
         server.scoreboard.removePlayerFromTeam(entity.uuid.toString())
         BossRegistry.unregister(entity.uuid)
         entity.discard()
-        (entity.level() as? ServerLevel)?.let { BossPersistence.requestLevelCheckpoint(it) }
         ctx.source.sendSuccess({ Component.translatable("wildbosses.command.despawn.success") }, false)
         return 1
     }
@@ -413,7 +411,7 @@ object WildBossCommands {
         val entity = getBossEntity(ctx)
         val instance = BossRegistry.get(entity.uuid) ?: throw NOT_A_BOSS.create()
         BossPersistence.restoreRuntimeState(entity, instance.tier, instance.spawnedAtTick)
-        BossPersistence.requestCheckpoint(entity)
+        BossPersistence.ensurePersistent(entity)
         ctx.source.sendSuccess({
             Component.translatable("wildbosses.command.glow.success", instance.tier.name, entity.pokemon.species.name)
         }, false)
@@ -433,7 +431,7 @@ object WildBossCommands {
         BossRegistry.unregister(entity.uuid)
         BossRegistry.register(entity, newTier, oldInstance.spawnedAtTick)
         BossPersistence.restoreRuntimeState(entity, newTier, oldInstance.spawnedAtTick)
-        BossPersistence.requestCheckpoint(entity)
+        BossPersistence.ensurePersistent(entity)
 
         ctx.source.sendSuccess({
             Component.translatable("wildbosses.command.tier.success", entity.pokemon.species.name, newTier.name)
@@ -451,7 +449,6 @@ object WildBossCommands {
                 val entity = level.getEntity(instance.entityUuid)
                 if (entity is PokemonEntity) {
                     entity.discard()
-                    BossPersistence.requestLevelCheckpoint(level)
                     count++
                     break
                 }
@@ -466,7 +463,7 @@ object WildBossCommands {
 
     private fun showVersion(ctx: CommandContext<CommandSourceStack>): Int {
         ctx.source.sendSuccess({
-            Component.literal("WildBosses | persistence build ${WildBosses.PERSISTENCE_PROBE_BUILD}")
+            Component.literal("WildBosses ${WildBosses.version}")
         }, false)
         return 1
     }
@@ -486,7 +483,7 @@ object WildBossCommands {
         val spawnTags = target.tags.filter { it.startsWith("wildbosses:spawned_at_") }.joinToString(",").ifBlank { "<none>" }
 
         val lines = listOf(
-            "build=${WildBosses.PERSISTENCE_PROBE_BUILD}",
+            "version=${WildBosses.version}",
             "species=${target.pokemon.species.name} entityUuid=${target.uuid} pokemonUuid=${target.pokemon.uuid}",
             "registry=${registry != null} registryTier=${registry?.tier?.name ?: "<none>"}",
             "bossTag=$bossTag tierTags=$tierTags spawnTags=$spawnTags",
@@ -496,7 +493,7 @@ object WildBossCommands {
         for (line in lines) {
             ctx.source.sendSuccess({ Component.literal("[WB-DEBUG] $line") }, false)
         }
-        BossPersistence.probeState("COMMAND_DEBUG_ENTITY", target)
+        BossPersistence.logState("COMMAND_DEBUG_ENTITY", target)
         return 1
     }
 

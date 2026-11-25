@@ -49,14 +49,6 @@ public abstract class PokemonEntityMixin {
                 break;
             }
         }
-
-        System.out.println(
-                "[BossPersistence-DEBUG] NBT_SAVE species=" + self.getPokemon().getSpecies().getName() +
-                        " entityUuid=" + self.getUUID() +
-                        " nbtBoss=" + output.getBoolean(NBT_BOSS) +
-                        " nbtTier=" + (output.contains(NBT_TIER) ? output.getString(NBT_TIER) : "<missing>") +
-                        " nbtSpawnedAt=" + (output.contains(NBT_SPAWNED_AT) ? output.getLong(NBT_SPAWNED_AT) : -1L)
-        );
     }
 
     @Inject(method = "load", at = @At("TAIL"))
@@ -92,23 +84,12 @@ public abstract class PokemonEntityMixin {
             self.getTags().removeIf(tag -> tag.startsWith(SPAWN_TICK_TAG_PREFIX));
             self.getTags().add(SPAWN_TICK_TAG_PREFIX + spawnedAt);
         }
-
-        System.out.println(
-                "[BossPersistence-DEBUG] NBT_LOAD species=" + self.getPokemon().getSpecies().getName() +
-                        " entityUuid=" + self.getUUID() +
-                        " nbtBoss=" + nbt.getBoolean(NBT_BOSS) +
-                        " bossTag=" + self.getTags().contains(BOSS_TAG) +
-                        " restoredTier=" + (tier.isBlank() ? "<missing>" : tier) +
-                        " restoredSpawnedAt=" + (nbt.contains(NBT_SPAWNED_AT) ? nbt.getLong(NBT_SPAWNED_AT) : -1L)
-        );
     }
 
     @Inject(method = "dropAllDeathLoot", at = @At("HEAD"), cancellable = true)
     private void wildbosses$cancelDefaultLootForBosses(net.minecraft.server.level.ServerLevel world, DamageSource source, CallbackInfo ci) {
         PokemonEntity self = (PokemonEntity) (Object) this;
-        boolean isBoss = self.getTags().contains(BOSS_TAG);
-        System.out.println("[WildBosses-DEBUG] dropAllDeathLoot fired for " + self.getPokemon().getSpecies().getName() + ", isBoss=" + isBoss + ", tags=" + self.getTags());
-        if (isBoss) {
+        if (self.getTags().contains(BOSS_TAG)) {
             ci.cancel();
         }
     }

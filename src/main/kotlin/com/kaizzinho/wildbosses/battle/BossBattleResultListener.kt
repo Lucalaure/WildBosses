@@ -61,7 +61,7 @@ object BossBattleResultListener {
                 BossHealthBarManager.end(bossEntity.uuid)
                 BossEnrageManager.stopTracking(bossEntity.uuid)
                 BossPersistence.restoreRuntimeState(bossEntity, bossInstance.tier, bossInstance.spawnedAtTick)
-                BossPersistence.requestCheckpoint(bossEntity)
+                BossPersistence.ensurePersistent(bossEntity)
 
                 val fleeingPlayer = event.battle.actors
                     .firstOrNull { it.type == ActorType.PLAYER } as? PlayerBattleActor
@@ -81,7 +81,7 @@ object BossBattleResultListener {
                     BossHealthBarManager.end(bossEntity.uuid)
                     BossEnrageManager.stopTracking(bossEntity.uuid)
                     BossPersistence.restoreRuntimeState(bossEntity, bossInstance.tier, bossInstance.spawnedAtTick)
-                    BossPersistence.requestCheckpoint(bossEntity)
+                    BossPersistence.ensurePersistent(bossEntity)
                 }
                 return@subscribe
             }
@@ -280,6 +280,5 @@ object BossBattleResultListener {
 
         server.scoreboard.removePlayerFromTeam(bossInstance.entityUuid.toString())
         BossRegistry.unregister(bossInstance.entityUuid)
-        BossPersistence.requestLevelCheckpoint(level)
     }
 }
